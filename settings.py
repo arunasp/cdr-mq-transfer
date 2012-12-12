@@ -24,6 +24,16 @@ DATABASES = {
         'PASSWORD': '',   # Not used with sqlite3.
         'HOST': '',     # Set to empty string for localhost.
         'PORT': '',           # Set to empty string for default.
+    },
+    'asterisk': { 
+        # Add 'postgresql_psycopg2','postgresql','mysql','sqlite3','oracle'
+        'ENGINE': 'django.db.backends.mysql',
+        # Or path to database file if using sqlite3.
+        'NAME': 'cdr',
+        'USER': 'root',       # Not used with sqlite3.
+        'PASSWORD': '',   # Not used with sqlite3.
+        'HOST': 'localhost',     # Set to empty string for localhost.
+        'PORT': '3306',           # Set to empty string for default.
     }
 }
 
@@ -57,7 +67,7 @@ MEDIA_URL = ''
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
 # Examples: "http://people.com/media/", "/media/".
-ADMIN_MEDIA_PREFIX = '/media/'
+ADMIN_MEDIA_PREFIX = ''
 
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = '7AMEz6mxjejHZRp2z5HFMadXasY4u41oeVXICiqS11U6YPLU2d'
@@ -117,8 +127,10 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'cdr_mq_transfer',
     'djcelery',
+    'south',
 )
 
+CELERY_TIMEZONE = TIME_ZONE
 CELERY_BACKEND = "database"
 
 #BROKER_HOST = "localhost"
@@ -138,3 +150,15 @@ CELERY_QUEUES = {
     },
 }
 
+CELERY_ACKS_LATE="True"
+CELERYD_CONCURRENCY=1
+CELERY_IMPORTS =  ("cdr_mq_transfer.tasks",)
+CELERYBEAT_MAX_LOOP_INTERVAL=60
+CELERYBEAT_SCHEDULE = {
+    'send-cdrs-every-minute': {
+        'task': 'cdr_mq_transfer.tasks.SendCDR',
+    },
+    'receive-cdrs-every-minute': {
+        'task': 'cdr_mq_transfer.tasks.GetCDR',
+    },
+}
