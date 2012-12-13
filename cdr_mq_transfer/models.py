@@ -1,6 +1,6 @@
 from django.db import models
 
-# Create your models here.
+# CDR MQ transfer database models.
 
 class Cdr(models.Model):
     acctid = models.TextField(primary_key=True)
@@ -23,5 +23,12 @@ class Cdr(models.Model):
     userfield = models.CharField(max_length=255)
     class Meta:
 	db_table = u'cdr'
+	def __str__(self):
+	    return "%s -&gt; %s" % ( self.src, self.dst )
+
+class CdrTail(models.Model):
+    lastrow = models.IntegerField(default=1)
+    class Meta:
+	db_table = u'cdrTail'
 	def __str__(self):
 	    return "%s -&gt; %s" % ( self.src, self.dst )

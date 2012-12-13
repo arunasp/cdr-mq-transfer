@@ -1,6 +1,7 @@
 # Django settings for celeryproject project.
 import os
 import djcelery
+from datetime import timedelta
 djcelery.setup_loader()
 
 DEBUG = True
@@ -26,16 +27,32 @@ DATABASES = {
         'PORT': '',           # Set to empty string for default.
     },
     'asterisk': { 
+	'ROWS_COUNT': 'select count(calldate) from cdr',
+        'TAIL_CDR': 'select * from cdr limit %s offset %s',
         # Add 'postgresql_psycopg2','postgresql','mysql','sqlite3','oracle'
         'ENGINE': 'django.db.backends.mysql',
         # Or path to database file if using sqlite3.
-        'NAME': 'cdr',
+        'NAME': 'asterisk',
         'USER': 'root',       # Not used with sqlite3.
         'PASSWORD': '',   # Not used with sqlite3.
         'HOST': 'localhost',     # Set to empty string for localhost.
         'PORT': '3306',           # Set to empty string for default.
     }
 }
+
+CACHES = {
+    'default': {
+        #'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        #'BACKEND': 'redis_cache.RedisCache',
+        #'LOCATION': '127.0.0.1:6379',
+        'LOCATION': '/var/tmp/cdr-mq',
+        'TIMEOUT': '600',  # 600 secs
+    }
+}
+
+#Include for cache machine : http://jbalogh.me/projects/cache-machine/
+CACHE_BACKEND = 'caching.backends.filebased://'
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -157,8 +174,12 @@ CELERYBEAT_MAX_LOOP_INTERVAL=60
 CELERYBEAT_SCHEDULE = {
     'send-cdrs-every-minute': {
         'task': 'cdr_mq_transfer.tasks.SendCDR',
+        'schedule': timedelta(seconds=10),
+        'args': (),
     },
     'receive-cdrs-every-minute': {
         'task': 'cdr_mq_transfer.tasks.GetCDR',
+        'schedule': timedelta(seconds=10),
+        'args': (),
     },
 }
