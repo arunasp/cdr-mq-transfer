@@ -35,7 +35,7 @@ DATABASES = {
         'NAME': 'asterisk',
         'USER': 'root',       # Not used with sqlite3.
         'PASSWORD': '',   # Not used with sqlite3.
-        'HOST': 'localhost',     # Set to empty string for localhost.
+        'HOST': '127.0.0.1',     # Set to empty string for localhost.
         'PORT': '3306',           # Set to empty string for default.
     }
 }
@@ -157,13 +157,16 @@ CELERY_BACKEND = "database"
 #BROKER_VHOST = "myvhost"
 BROKER_URL="amqp://myusername:mypassword@localhost:5672/myvhost"
 
-CELERY_DEFAULT_QUEUE = 'cdr-mq-transfer'
+CELERY_DEFAULT_QUEUE = 'default'
 CELERY_DEFAULT_EXCHANGE = "celery-test"
 CELERY_DEFAULT_EXCHANGE_TYPE = "topic"
 CELERY_DEFAULT_ROUTING_KEY = "celery"
 CELERY_QUEUES = {
+    'default': {
+        'binding_key': 'tasks.#',
+    },
     'cdr-mq-transfer': {
-        'binding_key': '#',
+        'binding_key': 'CDR.#',
     },
 }
 
@@ -172,14 +175,16 @@ CELERYD_CONCURRENCY=1
 CELERY_IMPORTS =  ("cdr_mq_transfer.tasks",)
 CELERYBEAT_MAX_LOOP_INTERVAL=60
 CELERYBEAT_SCHEDULE = {
-    'send-cdrs-every-minute': {
+    'send-cdrs-schedule': {
         'task': 'cdr_mq_transfer.tasks.SendCDR',
         'schedule': timedelta(seconds=10),
         'args': (),
     },
-    'receive-cdrs-every-minute': {
-        'task': 'cdr_mq_transfer.tasks.GetCDR',
-        'schedule': timedelta(seconds=10),
-        'args': (),
-    },
+#    'receive-cdrs-every-minute': {
+#        'task': 'cdr_mq_transfer.tasks.GetCDR',
+#        'schedule': timedelta(seconds=10),
+#        'args': (),
+#    },
 }
+
+CELERY_ROUTES = {"cdr_mq_transfer.tasks.GetCDR": {"queue": "cdr-mq-transfer"}}
