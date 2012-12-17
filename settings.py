@@ -2,6 +2,7 @@
 import os
 import djcelery
 from datetime import timedelta
+from kombu import Queue
 djcelery.setup_loader()
 
 DEBUG = True
@@ -15,12 +16,14 @@ APPLICATION_DIR = os.path.dirname(globals()['__file__'])
 
 MANAGERS = ADMINS
 
+APPLICATION_DIR = os.path.dirname(globals()['__file__'])
+
 DATABASES = {
     'default': { 
         # Add 'postgresql_psycopg2','postgresql','mysql','sqlite3','oracle'
         'ENGINE': 'django.db.backends.sqlite3',
         # Or path to database file if using sqlite3.
-        'NAME': 'celery.db',
+        'NAME': APPLICATION_DIR+'/celery.db',
         'USER': '',       # Not used with sqlite3.
         'PASSWORD': '',   # Not used with sqlite3.
         'HOST': '',     # Set to empty string for localhost.
@@ -142,13 +145,15 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.admin',
-    'cdr_mq_transfer',
     'djcelery',
     'south',
 )
 
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BACKEND = "database"
+
+CDR_SENDER = True
+#CDR_SENDER = False
 
 #BROKER_HOST = "localhost"
 #BROKER_PORT = 5672
@@ -157,34 +162,41 @@ CELERY_BACKEND = "database"
 #BROKER_VHOST = "myvhost"
 BROKER_URL="amqp://myusername:mypassword@localhost:5672/myvhost"
 
-CELERY_DEFAULT_QUEUE = 'default'
-CELERY_DEFAULT_EXCHANGE = "celery-test"
+CELERY_DEFAULT_EXCHANGE = "cdr-mq"
 CELERY_DEFAULT_EXCHANGE_TYPE = "topic"
 CELERY_DEFAULT_ROUTING_KEY = "celery"
-CELERY_QUEUES = {
-    'default': {
-        'binding_key': 'tasks.#',
-    },
-    'cdr-mq-transfer': {
-        'binding_key': 'CDR.#',
-    },
+
+CDR_LOCAL_MQ = { 
+    'queue': 'default',
+    'binding_key': os.uname()[1]+'-tasks.#',
 }
+
+CDR_REMOTE_MQ = { 
+    'queue': 'cdr-mq-transfer',
+    'binding_key': 'CDR.#'
+}
+
+
 
 CELERY_ACKS_LATE="True"
 CELERYD_CONCURRENCY=1
-CELERY_IMPORTS =  ("cdr_mq_transfer.tasks",)
 CELERYBEAT_MAX_LOOP_INTERVAL=60
-CELERYBEAT_SCHEDULE = {
-    'send-cdrs-schedule': {
-        'task': 'cdr_mq_transfer.tasks.SendCDR',
-        'schedule': timedelta(seconds=10),
-        'args': (),
-    },
-#    'receive-cdrs-every-minute': {
-#        'task': 'cdr_mq_transfer.tasks.GetCDR',
-#        'schedule': timedelta(seconds=10),
-#        'args': (),
-#    },
-}
 
-CELERY_ROUTES = {"cdr_mq_transfer.tasks.GetCDR": {"queue": "cdr-mq-transfer"}}
+if (CDR_SENDER):
+    INSTALLED_APPS += ('cdr_mq_transfer.mq_transfer',)
+    CELERY_DEFAULT_QUEUE = CDR_LOCAL_MQ['queue']
+    CELERY_IMPORTS =  ("cdr_mq_transfer.mq_transfer",)
+    CELERYBEAT_SCHEDULE = {
+	'send-cdrs-schedule': {
+    	    'task': 'cdr_mq_transfer.mq_transfer.SendCDR',
+    	    'schedule': timedelta(seconds=10),
+    	    'args': (),
+	},
+    }
+    CELERY_DEFAULT_QUEUE = 'default'
+else:
+    INSTALLED_APPS += ('cdr_mq_transfer.mq_receiver',)
+    CELERY_DEFAULT_QUEUE = CDR_REMOTE_MQ['queue']
+    CELERY_IMPORTS =  ("cdr_mq_transfer.mq_receiver",)
+
+CELERY_ROUTES = { 'cdr_mq_transfer.mq_router.MQRouter', }
