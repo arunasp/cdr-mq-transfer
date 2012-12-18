@@ -34,17 +34,20 @@ class SendCDR(PeriodicTask):
 	    for row in rows:
 		rows_count = int(row[0])
 	    logger.debug("SendCDR :: The CDR table has %d rows." % rows[0])
-	    query = settings.DATABASES['asterisk']['TAIL_CDR'] % (rows_count, savedrow)
-	    result = self.DBQuery('asterisk',query)
-	    logger.debug("SendCDR :: Asterisk CDR backend result:")
-	    for row in result:
-		logger.debug("%s" % str(row))
+	    if (savedrow < rows_count):
+		query = settings.DATABASES['asterisk']['TAIL_CDR'] % (rows_count, savedrow)
+		result = self.DBQuery('asterisk',query)
+		logger.debug("SendCDR :: Asterisk CDR backend result:")
+		for row in result:
+		    logger.debug("%s" % str(row))
 
-	    logger.debug("SendCDR :: Sending CDRs to MQ broker..")
-	    CDRresult = GetCDR.apply_async(queue="cdr-mq-transfer",countdown=1,args=result)
-	    run = "New CDRs sent: %d" % (len(result))
-	    row = CdrTail(pk=1, lastrow = len(result) + savedrow)
-	    row.save()
+		logger.debug("SendCDR :: Sending CDRs to MQ broker..")
+		CDRresult = GetCDR.apply_async(queue="cdr-mq-transfer",countdown=1,args=result)
+		run = "New CDRs sent: %d" % (len(result))
+		row = CdrTail(pk=1, lastrow = len(result) + savedrow)
+		row.save()
+	    else:
+		logger.debug("SendCDR :: No new CDRs found")
 
 	except Exception as e:
 	    logger.error("SendCDR :: Failed: %s (%s, %s)" % (e.message, type(e), e))
