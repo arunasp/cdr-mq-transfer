@@ -12,8 +12,6 @@ ADMINS = (
     # ('Your Name', 'your_email@domain.com'),
 )
 
-APPLICATION_DIR = os.path.dirname(globals()['__file__'])
-
 MANAGERS = ADMINS
 
 APPLICATION_DIR = os.path.dirname(globals()['__file__'])
@@ -180,7 +178,7 @@ CDR_REMOTE_MQ = {
 
 CELERY_ACKS_LATE="True"
 CELERYD_CONCURRENCY=1
-CELERYBEAT_MAX_LOOP_INTERVAL=60
+CELERYBEAT_MAX_LOOP_INTERVAL=10
 
 if (CDR_SENDER):
     INSTALLED_APPS += ('cdr_mq_transfer.mq_transfer',)
