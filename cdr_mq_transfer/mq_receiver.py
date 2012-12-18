@@ -30,6 +30,7 @@ class GetCDR(Task):
 
         except Exception as e:
             logger.error("GetCDR :: Failed: %s (%s, %s)" % (e.message, type(e), e))
+#            GetCDR.update_state(state=states.FAILURE)
             return e
         return run
 

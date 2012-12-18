@@ -4,7 +4,7 @@ from django.core import exceptions
 from datetime import datetime, date, timedelta
 from celery.execute import send_task
 from celery.task import Task, PeriodicTask
-from cdr_mq_transfer.models import Cdr
+from cdr_mq_transfer.models import CdrTail
 from cdr_mq_transfer.task_lock import only_one
 
 #Ensure we have long time enough to finish task
@@ -26,13 +26,15 @@ class SendCDR(PeriodicTask):
 	    from cdr_mq_transfer.mq_receiver import GetCDR
 	    logger.info('Running task :: SendCDR')
 	    rows_count_query = settings.DATABASES['asterisk']['ROWS_COUNT']
-	    lastrow = self.DBQuery('asterisk',rows_count_query)
-	    lastrow = 30
+	    savedrow = self.DBQuery('asterisk',rows_count_query)
+	    row = CdrTail.objects.get(pk=1)
+	    savedrow = row.lastrow
+	    logger.debug("SendCDR :: last saved row in CDR database: %d" % (savedrow))
 	    rows = self.DBQuery('asterisk',rows_count_query)
 	    for row in rows:
 		rows_count = int(row[0])
 	    logger.debug("SendCDR :: The CDR table has %d rows." % rows[0])
-	    query = settings.DATABASES['asterisk']['TAIL_CDR'] % (rows_count, lastrow)
+	    query = settings.DATABASES['asterisk']['TAIL_CDR'] % (rows_count, savedrow)
 	    result = self.DBQuery('asterisk',query)
 	    logger.debug("SendCDR :: Asterisk CDR backend result:")
 	    for row in result:
@@ -40,9 +42,13 @@ class SendCDR(PeriodicTask):
 
 	    logger.debug("SendCDR :: Sending CDRs to MQ broker..")
 	    CDRresult = GetCDR.apply_async(queue="cdr-mq-transfer",countdown=1,args=result)
+	    run = "New CDRs sent: %d" % (len(result))
+	    row = CdrTail(pk=1, lastrow = len(result) + savedrow)
+	    row.save()
 
 	except Exception as e:
 	    logger.error("SendCDR :: Failed: %s (%s, %s)" % (e.message, type(e), e))
+#	    self.update_state(state=states.FAILURE)
 	    return e
 
 	return run
@@ -59,5 +65,6 @@ class SendCDR(PeriodicTask):
 	    _cursor.close()
 	except Exception as e:
 	    logger.error("DBQuery :: transaction failed: %s (%s, %s)" % (e.message, type(e), e))
+	    raise
 
 	return DBQuery

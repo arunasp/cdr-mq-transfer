@@ -12,6 +12,8 @@ ADMINS = (
     # ('Your Name', 'your_email@domain.com'),
 )
 
+APPLICATION_DIR = os.path.dirname(globals()['__file__'])
+
 MANAGERS = ADMINS
 
 APPLICATION_DIR = os.path.dirname(globals()['__file__'])
@@ -145,6 +147,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'djcelery',
     'south',
+    'cdr_mq_transfer',
 )
 
 CELERY_TIMEZONE = TIME_ZONE
@@ -162,14 +165,13 @@ BROKER_URL="amqp://myusername:mypassword@localhost:5672/myvhost"
 
 CELERY_DEFAULT_EXCHANGE = "cdr-mq"
 CELERY_DEFAULT_EXCHANGE_TYPE = "topic"
-CELERY_DEFAULT_ROUTING_KEY = "celery"
 
-CDR_LOCAL_MQ = { 
+CDR_PRODUCER_MQ = { 
     'queue': 'default',
     'binding_key': os.uname()[1]+'-tasks.#',
 }
 
-CDR_REMOTE_MQ = { 
+CDR_CONSUMER_MQ = { 
     'queue': 'cdr-mq-transfer',
     'binding_key': 'CDR.#'
 }
@@ -182,7 +184,8 @@ CELERYBEAT_MAX_LOOP_INTERVAL=10
 
 if (CDR_SENDER):
     INSTALLED_APPS += ('cdr_mq_transfer.mq_transfer',)
-    CELERY_DEFAULT_QUEUE = CDR_LOCAL_MQ['queue']
+    CELERY_DEFAULT_QUEUE = CDR_PRODUCER_MQ['queue']
+    CELERY_DEFAULT_ROUTING_KEY = CDR_PRODUCER_MQ['binding_key']
     CELERY_IMPORTS =  ("cdr_mq_transfer.mq_transfer",)
     CELERYBEAT_SCHEDULE = {
 	'send-cdrs-schedule': {
@@ -194,7 +197,8 @@ if (CDR_SENDER):
     CELERY_DEFAULT_QUEUE = 'default'
 else:
     INSTALLED_APPS += ('cdr_mq_transfer.mq_receiver',)
-    CELERY_DEFAULT_QUEUE = CDR_REMOTE_MQ['queue']
+    CELERY_DEFAULT_QUEUE = CDR_CONSUMER_MQ['queue']
+    CELERY_DEFAULT_ROUTING_KEY = CDR_CONSUMER_MQ['binding_key']
     CELERY_IMPORTS =  ("cdr_mq_transfer.mq_receiver",)
 
 CELERY_ROUTES = { 'cdr_mq_transfer.mq_router.MQRouter', }
