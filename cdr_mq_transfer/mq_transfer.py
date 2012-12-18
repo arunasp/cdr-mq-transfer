@@ -26,14 +26,12 @@ class SendCDR(PeriodicTask):
 	    from cdr_mq_transfer.mq_receiver import GetCDR
 	    logger.info('Running task :: SendCDR')
 	    rows_count_query = settings.DATABASES['asterisk']['ROWS_COUNT']
-	    savedrow = self.DBQuery('asterisk',rows_count_query)
 	    row = CdrTail.objects.get(pk=1)
 	    savedrow = row.lastrow
 	    logger.debug("SendCDR :: last saved row in CDR database: %d" % (savedrow))
 	    rows = self.DBQuery('asterisk',rows_count_query)
-	    for row in rows:
-		rows_count = int(row[0])
-	    logger.debug("SendCDR :: The CDR table has %d rows." % rows[0])
+	    rows_count = int(rows[1][0])
+	    logger.debug("SendCDR :: The CDR table has %d rows." % rows_count)
 	    if (savedrow < rows_count):
 		query = settings.DATABASES['asterisk']['TAIL_CDR'] % (rows_count, savedrow)
 		result = self.DBQuery('asterisk',query)
@@ -64,7 +62,7 @@ class SendCDR(PeriodicTask):
 	try:
 	    _cursor = db.connections[_db].cursor()
 	    _cursor.execute(_query)
-	    DBQuery = _cursor.fetchall()
+	    DBQuery = _cursor.description + _cursor.fetchall()
 	    _cursor.close()
 	except Exception as e:
 	    logger.error("DBQuery :: transaction failed: %s (%s, %s)" % (e.message, type(e), e))
