@@ -42,7 +42,7 @@ class SendCDR(PeriodicTask):
 		logger.debug("SendCDR :: Sending CDRs to MQ broker..")
 		CDRresult = GetCDR.apply_async(queue="cdr-mq-transfer",countdown=1,args=result)
 		run = "New CDRs sent: %d" % (len(result))
-		row = CdrTail(pk=1, lastrow = len(result) + savedrow)
+		row = CdrTail(pk=1, lastrow = rows_count + 1)
 		row.save()
 	    else:
 		logger.debug("SendCDR :: No new CDRs found")
