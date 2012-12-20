@@ -20,13 +20,31 @@ class GetCDR(Task):
         logger = self.get_logger()
         run = None
         CDR = args
-
+	data = list()
+	header_names = ['name','type_code','display_size','internal_size','precision','scale','null_ok']
+	header =  list()
+	columns = list()
         try:
             logger.info('Running task :: GetCDR')
             logger.debug("GetCDR :: Received CDR entries:")
             for entry in CDR:
                 row = str(entry)
-                logger.debug(row)
+#                logger.debug(row)
+                if (len(entry) == 7):
+            	    """
+            	    Column type from http://www.python.org/dev/peps/pep-0249/#description
+            	    """
+            	    columns.append(dict(zip(header_names, entry)))
+
+            for column_name in columns:
+        	header.append(column_name[header_names[0]])
+            logger.debug("GetCDR :: Extracted dataset column names: %s" % str(header))
+
+            for entry in CDR:
+                if (len(entry) != 7 ):
+		    data.append(dict(zip(header,list(entry))))
+
+	    logger.debug("GetCDR :: Data received: %s" % str(data))
 
         except Exception as e:
             logger.error("GetCDR :: Failed: %s (%s, %s)" % (e.message, type(e), e))
